@@ -1,6 +1,6 @@
-from fastapi import APIRouter
 from pydantic import BaseModel, PositiveInt, PositiveFloat
 from typing import List
+from fastapi import APIRouter, HTTPException
 
 router = APIRouter()
 
@@ -15,7 +15,7 @@ class FlatmatePydantic(FlatmateBase):
 
 
 class BillBase(BaseModel):
-    amount: PositiveFloat
+    amount: PositiveInt
     month: PositiveInt
     year: PositiveInt
     flatmates: List[FlatmateBase]
@@ -26,7 +26,6 @@ class BillBase(BaseModel):
 
     def calculate_payments(self):
         flatmates_with_payments = []
-
         for flatmate in self.flatmates:
             weight = flatmate.days_in_house / self.total_days
             payment = self.amount * weight / len(self.flatmates)
@@ -37,24 +36,12 @@ class BillBase(BaseModel):
                     payment=payment,
                 )
             )
-
         return flatmates_with_payments
 
 
 @router.post("/bills/", response_model=List[FlatmatePydantic])
 def create_bill(bill: BillBase):
-    total_days = sum(fm.days_in_house for fm in bill.flatmates)
-    flatmates_with_payments = []
-
-    for flatmate in bill.flatmates:
-        weight = flatmate.days_in_house / total_days
-        payment = bill.amount * weight / len(bill.flatmates)
-        flatmates_with_payments.append(
-            FlatmatePydantic(
-                name=flatmate.name,
-                days_in_house=flatmate.days_in_house,
-                payment=payment,
-            )
-        )
-
-    return flatmates_with_payments
+    try:
+        return bill.calculate_payments()
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))

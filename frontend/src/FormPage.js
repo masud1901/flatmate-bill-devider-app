@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
 
 function FormPage() {
   const [formData, setFormData] = useState({
@@ -14,46 +13,41 @@ function FormPage() {
   });
   const navigate = useNavigate();
 
-  function removeEmptyKeys(obj) {
-    const newObj = { ...obj };
-    for (let key in newObj) {
-      if (key === "") {
-        delete newObj[key];
-      }
+
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  try {
+    const requestData = {
+      amount: parseInt(formData.amount),
+      month: parseInt(formData.month),
+      year: parseInt(formData.year),
+      flatmates: formData.flatmates.map((flatmate) => ({
+        name: flatmate.name,
+        days_in_house: parseInt(flatmate.days_in_house),
+      })),
+    };
+
+    console.log("Form Data", JSON.stringify(requestData, null, 2));
+
+    const response = await fetch("http://localhost:8000/api/bills/", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(requestData),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! Status: ${response.status}`);
     }
-    return newObj;
+
+    const result = await response.json();
+    console.log("Response data:", JSON.stringify(result, null, 2));
+    navigate("/result", { state: { result } });
+  } catch (error) {
+    console.error("Error:", error);
   }
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-
-    try {
-      let requestData = {
-        ...formData,
-        amount: parseInt(formData.amount),
-        month: parseInt(formData.month),
-        year: parseInt(formData.year),
-        flatmates: formData.flatmates.map((flatmate) => ({
-          name: flatmate.name,
-          days_in_house: parseInt(flatmate.days_in_house),
-        })),
-      };
-
-      // Remove empty keys from requestData
-      requestData = removeEmptyKeys(requestData);
-      console.log("Form Data", JSON.stringify(formData, null, 2));
-      const response = await axios.post(
-        "https://localhost:8000/api/bills/",
-        requestData
-      );
-      console.log("Response data:", JSON.stringify(response.data, null, 2));
-      const result = response.data;
-      navigate("/result", { state: { result } });
-    } catch (error) {
-      console.error("Error:", error);
-    }
-  };
-
+};
   const handleChange = (e, index, field) => {
     if (index !== null && field !== null) {
       const updatedFlatmates = [...formData.flatmates];
